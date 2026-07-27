@@ -2,5 +2,4 @@ out/
 build/
 .vs/
 .cache/
-rsc/
-.clangd/
+compile_commands.json
