@@ -15,6 +15,7 @@ add_executable(engine
 	CVar_System.cpp
 	S_System.cpp
 	Math.cpp
+	FS_Main.cpp
 )
 
 if(WIN32)

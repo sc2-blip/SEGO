@@ -78,6 +78,13 @@ float		Cvar_GetValue ( const char *name );
 int			Cvar_GetInteger( const char * name );
 bool		Cvar_Command( void );
 
+// Filesystem
+void    FS_Init( void );
+void    FS_Shutdown( void );
+void    FS_AddSearchPath( const char *path );
+long    FS_ReadFile( const char *virtualPath, void **buffer );
+void    FS_FreeFile( void *buffer );
+int     FS_FileExists( const char *virtualPath );
 
 // util
 void	S_strncpyz( char *dest, const char *src, size_t size );

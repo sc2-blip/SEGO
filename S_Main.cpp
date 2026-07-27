@@ -1,4 +1,3 @@
-#include <cstdio>
 #include <csignal>
 #include "Local.h"
 
@@ -17,10 +16,10 @@ int S_SignalCaught( void )
 void S_InitSignals( void )
 {
     signal ( SIGINT, S_SigHandler ); // Ctrl + C
-    signal ( SIGTERM, S_SigHandler ); // kill signal 
+    signal ( SIGTERM, S_SigHandler ); // kill signal
 }
 
-int main( int argc, char **argv ) 
+int main( int argc, char **argv )
 {
     Com_Init( argc, argv );
 
