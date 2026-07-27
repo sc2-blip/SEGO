@@ -1,5 +1,10 @@
 #include "Local.h"
+
+#ifdef _WIN32
 #include <windows.h>
+#else
+#include <unistd.h>
+#endif
 
 #define SYS_LOG "^3[Sys]^7 "
 
@@ -9,10 +14,16 @@
 
 static int s_ansiEnabled;
 
-int S_AnsiEnabled( void ) 
+int S_AnsiEnabled( void )
 {
 	return s_ansiEnabled;
 }
+
+// ============================================================
+//  platform: Windows
+// ============================================================
+
+#ifdef _WIN32
 
 static void S_PrintSystemInfo( void )
 {
@@ -124,7 +135,7 @@ static void S_PrintSystemInfo( void )
 		mem.dwMemoryLoad );
 }
 
-void S_InitConsoleAnsi ( void )
+void S_InitConsoleAnsi( void )
 {
 	HANDLE	hOut;
 	DWORD	mode;
@@ -157,3 +168,110 @@ void S_SystemInit( void )
 	Cmd_Create( "systeminfo", S_PrintSystemInfo );
 	S_PrintSystemInfo();
 }
+
+// ============================================================
+//  platform: Linux / POSIX
+// ============================================================
+
+#else
+
+// grab a value from a /proc key-value file
+// looks for a line starting with key, returns the text after ':'
+static void S_ReadProcValue( const char *path, const char *key, char *out, size_t outSize )
+{
+	FILE		*f;
+	char		line[256];
+	size_t		keyLen, len;
+	const char	*val;
+
+	out[0] = '\0';
+
+	f = fopen( path, "r" );
+	if ( !f )
+		return;
+
+	keyLen = strlen( key );
+
+	while ( fgets( line, sizeof( line ), f ) )
+	{
+		if ( strncmp( line, key, keyLen ) )
+			continue;
+
+		val = strchr( line, ':' );
+		if ( !val )
+			break;
+
+		val++;
+		while ( *val == ' ' || *val == '\t' )
+			val++;
+
+		S_strncpyz( out, val, outSize );
+
+		len = strlen( out );
+		if ( len && out[len - 1] == '\n' )
+			out[len - 1] = '\0';
+
+		break;
+	}
+
+	fclose( f );
+}
+
+static void S_PrintSystemInfo( void )
+{
+	char	buf[256];
+	long	memTotal, memAvail;
+
+	// /proc/cpuinfo has one block per logical core, first match is fine
+	S_ReadProcValue( "/proc/cpuinfo", "model name", buf, sizeof( buf ) );
+	Com_Printf( SYS_LOG "CPU: %s\n",
+		buf[0] ? buf : "unknown" );
+
+	S_ReadProcValue( "/proc/cpuinfo", "cpu MHz", buf, sizeof( buf ) );
+	Com_Printf( SYS_LOG "CPU clock: %d MHz\n",
+		(int)atof( buf ) );
+
+	Com_Printf( SYS_LOG "logical cores: %ld\n",
+		sysconf( _SC_NPROCESSORS_ONLN ) );
+	Com_Printf( SYS_LOG "page size: %ld bytes\n",
+		sysconf( _SC_PAGESIZE ) );
+
+	// /proc/meminfo reports in kB
+	S_ReadProcValue( "/proc/meminfo", "MemTotal", buf, sizeof( buf ) );
+	memTotal = atol( buf ) / 1024;
+
+	S_ReadProcValue( "/proc/meminfo", "MemAvailable", buf, sizeof( buf ) );
+	memAvail = atol( buf ) / 1024;
+
+	Com_Printf( SYS_LOG "RAM: %ld MB total, %ld MB available\n",
+		memTotal, memAvail );
+
+	if ( memTotal > 0 )
+	{
+		Com_Printf( SYS_LOG "memory load: %ld%%\n",
+			( ( memTotal - memAvail ) * 100 ) / memTotal );
+	}
+}
+
+void S_InitConsoleAnsi( void )
+{
+	// unix terminals speak ANSI natively, just check it's a real tty
+	s_ansiEnabled = isatty( STDOUT_FILENO );
+}
+
+void S_SystemInit( void )
+{
+	const char	*ver = Cvar_GetString( "version" );
+	char		title[256];
+
+	snprintf( title, sizeof( title ), "%s - %s", ver, __DATE__ );
+
+	// xterm/VTE/kitty/alacritty all honor OSC 0 for window title
+	printf( "\033]0;%s\007", title );
+	fflush( stdout );
+
+	Cmd_Create( "systeminfo", S_PrintSystemInfo );
+	S_PrintSystemInfo();
+}
+
+#endif
