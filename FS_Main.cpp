@@ -21,8 +21,6 @@ static int				fs_numSearchPaths;
 // result: "base/textures/gold.tga"
 static void FS_BuildOSPath( const char *base, const char *virtualPath, char *out, size_t outSize )
 {
-	// TODO: snprintf the two together with a / separator
-	// one line of real work
 	snprintf( out, outSize, "%s/%s", base, virtualPath);
 }
 
@@ -33,13 +31,6 @@ static void FS_BuildOSPath( const char *base, const char *virtualPath, char *out
 // last added = highest priority = searched first
 void FS_AddSearchPath( const char *path )
 {
-	// TODO:
-	// - assert path is not NULL
-	// - bounds check fs_numSearchPaths against MAX_SEARCH_PATHS
-	//   (Com_Error if full, not assert -- that's a runtime condition)
-	// - copy path into fs_searchPaths[fs_numSearchPaths].path
-	// - increment
-	// - print what you added
 	assert( path != NULL );
 
 	if ( fs_numSearchPaths >= MAX_SEARCH_PATHS )
@@ -60,12 +51,6 @@ void FS_AddSearchPath( const char *path )
 // does not leave anything open
 int FS_FileExists( const char *virtualPath )
 {
-	// TODO:
-	// - loop from fs_numSearchPaths - 1 down to 0
-	//   - FS_BuildOSPath into a local buffer
-	//   - fopen "rb"
-	//   - if it opens: fclose, return 1
-	// - return 0
 	for ( int i = fs_numSearchPaths - 1; i >= 0; i-- )
 	{
 		char osPath[MAX_OSPATH]; // local buffer for the OS path
@@ -89,21 +74,6 @@ int FS_FileExists( const char *virtualPath )
 // the buffer is null-terminated so text files can be used as strings
 long FS_ReadFile( const char *virtualPath, void **buffer )
 {
-	// TODO:
-	// - assert( buffer ) -- a programming error if someone passes NULL here
-	// - *buffer = NULL
-	// - walk search paths top-down:
-	//   - FS_BuildOSPath into a local buffer
-	//   - fopen "rb"
-	//   - if it opens:
-	//     - fseek end, ftell for size, fseek back to start
-	//     - S_Malloc( size + 1 )
-	//     - fread into the buffer
-	//     - null terminate: ((char *)*buffer)[size] = '\0'
-	//     - fclose
-	//     - return size
-	// - not found: return -1
-
 	assert( buffer != NULL );
 	*buffer = NULL;
 
@@ -136,9 +106,6 @@ long FS_ReadFile( const char *virtualPath, void **buffer )
 // frees a buffer that FS_ReadFile returned
 void FS_FreeFile( void *buffer )
 {
-	// TODO:
-	// - assert( buffer ) -- freeing NULL through here is a bug, not normal flow
-	// - S_Free it
 	assert( buffer != NULL );
 	S_Free( buffer );
 }
@@ -149,11 +116,6 @@ void FS_FreeFile( void *buffer )
 // prints the current search path stack so you can see the priority order
 static void Cmd_Path( void )
 {
-	// TODO:
-	// - loop through fs_searchPaths 0..fs_numSearchPaths
-	// - print each one with its index
-	// - print the total count
-
 	for (int i = 0; i < fs_numSearchPaths; i++)
 	{
 		Com_Printf( FS_LOG "%d: %s\n", i, fs_searchPaths[i].path );
@@ -167,11 +129,6 @@ static void Cmd_Path( void )
 // a disposable command for you to verify the pipeline works
 static void Cmd_ReadTest( void )
 {
-	// TODO:
-	// - check Cmd_Argc() >= 2, print usage if not
-	// - call FS_ReadFile with Cmd_Argv(1) and a local void *buf
-	// - if it returned > 0: print the path and size, then FS_FreeFile
-	// - if it returned -1: print "not found"
 	if ( Cmd_Argc() < 2 )
 	{
 		Com_Printf( FS_LOG "Usage: readtest <filepath>\n" );
@@ -198,13 +155,6 @@ void FS_Init( void )
 {
 	fs_numSearchPaths = 0;
 
-	// TODO:
-	// - FS_AddSearchPath for your default game directory
-	//   "base" is the classic id convention (baseq3, base, etc.)
-	// - Cmd_Create "path" -> Cmd_Path
-	// - Cmd_Create "readtest" -> Cmd_ReadTest
-	// - print initialized
-
 	FS_AddSearchPath( "rsc" );
 	Cmd_Create( "path", Cmd_Path );
 	Cmd_Create( "readtest", Cmd_ReadTest );
@@ -214,9 +164,6 @@ void FS_Init( void )
 
 void FS_Shutdown( void )
 {
-	// TODO:
-	// - reset fs_numSearchPaths to 0
-	// - print shutdown
 	fs_numSearchPaths = 0;
 	Com_Printf( FS_LOG "VFS shutdown\n" );
 }
