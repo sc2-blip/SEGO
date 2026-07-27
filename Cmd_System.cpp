@@ -166,17 +166,16 @@ static void Cmd_Echo( void )
 static void Cmd_Exec( void )
 {
 	char	filename[MAX_CMD_LINE];
-	char	path[MAX_CMD_LINE];
 	char	line[MAX_CMD_LINE];
-	FILE	*f;
 	long	size;
 	char	*buf;
 	char	*text;
 	int		len;
-
+	
 	if ( Cmd_Argc() < 2 )
 	{
 		Com_Printf( CMD_LOG "usage: exec <filename>\n" );
+		return;
 	}
 
 	S_strncpyz( filename, Cmd_Argv( 1 ), sizeof( filename ));
@@ -188,7 +187,7 @@ static void Cmd_Exec( void )
 		S_strncpyz( filename + len, ".cfg", sizeof( filename ) - len );
 	}
 
-	// build path to cfg relative to engine root
+	/*// build path to cfg relative to engine root
 	snprintf( path, sizeof( path ), "cfg/%s", filename );
 
 	// open and measure
@@ -197,6 +196,7 @@ static void Cmd_Exec( void )
 	if ( !f )
 	{
 		Com_Printf( CMD_LOG "couldn't exec %s\n", path );
+		return; 
 	}
 
 	fseek( f, 0, SEEK_END );
@@ -213,9 +213,16 @@ static void Cmd_Exec( void )
 	buf = ( char * )S_Malloc( size + 1 );
 	fread( buf, 1, size, f);
 	buf[size] = '\0';
-	fclose( f );
+	fclose( f );*/
 
-	Com_Printf( CMD_LOG "execing %s (%ld bytes)\n", path, size );
+	size = FS_ReadFile( filename, (void **)&buf );
+	if (size < 0 )
+	{
+		Com_Printf( CMD_LOG "couldn't exec %s\n", filename );
+		return;
+	}
+
+	Com_Printf( CMD_LOG "execing %s (%ld bytes)\n", filename, size );
 
 	// walk buffer line by line, same char-walk pattern as toenizer
 	text = buf;
@@ -246,7 +253,8 @@ static void Cmd_Exec( void )
 		}
 	}
 
-	S_Free( buf );
+	//S_Free( buf );
+	FS_FreeFile( buf );
 }
 
 static void Cmd_xColorTest( void ) 
