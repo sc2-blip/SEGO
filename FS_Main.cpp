@@ -21,7 +21,7 @@ static int				fs_numSearchPaths;
 // result: "base/textures/gold.tga"
 static void FS_BuildOSPath( const char *base, const char *virtualPath, char *out, size_t outSize )
 {
-	snprintf( out, outSize, "%s/%s", base, virtualPath);
+	snprintf( out, outSize, "%s/%s", base, virtualPath );
 }
 
 // ---- public API ----
