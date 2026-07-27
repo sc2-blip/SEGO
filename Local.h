@@ -3,6 +3,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <cassert>
 
 #define	MAX_PRINT_MSG	4096
 
@@ -16,7 +17,7 @@
 
 typedef unsigned char byte_t; // unsigned 8-bit value
 
-struct conColor_t 
+struct conColor_t
 {
 	char	code;
 	byte_t	r, g, b;
@@ -26,7 +27,7 @@ struct S_MemHeader {
 	size_t size;
 };
 
-struct cvar_t 
+struct cvar_t
 {
 	char	name[64];
 	char	string[256];
