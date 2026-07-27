@@ -120,6 +120,7 @@ void Com_Printf( const char* fmt, ... )
 
 void Com_Error( const char* fmt, ... ) 
 { // Same thing, but with some string adjustment
+  // Note: This WILL stop the program, so use with intent.
 	char		msg[MAX_PRINT_MSG];
 	va_list		argptr;
 
@@ -129,6 +130,13 @@ void Com_Error( const char* fmt, ... )
 
 	Com_Printf( "^1FATAL: %s^7\n", msg );
 	exit(1); //actually exit
+
+	// About this exit(1) for now 7/27/26:
+	// When SEGO has a rendered game with a menu system,
+	// we'll want to split error pathing by severity:
+	// ERR_DROP tear down gameplay, flush memory,
+	// longjmp back to the main loop
+	// otherwise severity says exit 1
 }
 
 const char *S_ConsoleInput( void ) 
@@ -138,13 +146,15 @@ const char *S_ConsoleInput( void )
 	Com_Printf( "^g]^3 " );
 	fflush( stdout );
 
-	if ( !fgets( line, sizeof( line ), stdin ) )
+	if ( !fgets( line, sizeof ( line ), stdin ) ) 
 	{
-		// EOF or read error, ctrl+d or empty file stream
-		//Com_Printf( COM_LOG "EOF or read error");
+		if ( ferror( stdin ) ) 
+		{
+			Com_Error( COM_LOG "Error reading from console input" );
+		}
+		// EOF
 		Com_Quit();
 	}
-
 	return line;
 }
 
