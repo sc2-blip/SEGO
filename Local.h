@@ -53,6 +53,8 @@ void	S_MemShutdown ( void );
 const char			*S_ConsoleInput( void );
 void				Com_Printf( const char *fmt, ... );
 void				Com_Frame ( void );
+void		        Con_Init( void );
+void 				Con_Shutdown( void );	
 
 // Common
 [[noreturn]] void	Com_Quit( void );

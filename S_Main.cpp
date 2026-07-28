@@ -21,6 +21,7 @@ void S_InitSignals( void )
 
 int main( int argc, char **argv )
 {
+    Con_Init();
     Com_Init( argc, argv );
 
     while ( 1 )

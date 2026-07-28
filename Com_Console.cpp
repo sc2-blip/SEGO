@@ -1,6 +1,8 @@
 #include "Local.h"
 #include <stdio.h>
 #include <cstdarg>
+#include <termios.h>
+#include <unistd.h>
 
 #define COM_LOG		"^3[Console]^7 "
 
@@ -26,6 +28,28 @@ static conColor_t con_colors[] = {
 };
 
 static const int con_numColors = sizeof ( con_colors ) / sizeof ( con_colors[0] );
+
+// ============================================================
+// raw mode terminal and command history
+// ============================================================
+
+#define CON_HISTORY_DEPTH	32
+
+// special key identifiers from Con_ReadKey
+#define CON_KEY_UP			256
+#define CON_KEY_DOWN		257
+#define CON_KEY_RIGHT		258
+#define CON_KEY_LEFT		259
+
+static struct termios	con_savedTerm;
+static bool				con_rawMode;
+
+static char		con_history[CON_HISTORY_DEPTH][MAX_CMD_LINE];
+static int		con_histCount;		// total commands stored
+static int		con_histBrowse;		// where we are while arrowing through history
+static char		con_stash[MAX_CMD_LINE];	// preserves in-progress input before browsing
+
+// ============================================================
 
 static conColor_t *Com_ColorForCode( char code )
 {
@@ -129,7 +153,8 @@ void Com_Error( const char* fmt, ... )
 	va_end ( argptr );
 
 	Com_Printf( "^1FATAL: %s^7\n", msg );
-	exit(1); //actually exit
+	Con_Shutdown();
+	exit(1);
 
 	// About this exit(1) for now 7/27/26:
 	// When SEGO has a rendered game with a menu system,
@@ -139,23 +164,210 @@ void Com_Error( const char* fmt, ... )
 	// otherwise severity says exit 1
 }
 
+// ============================================================
+// Con_Init / Con_Shutdown
+// ============================================================
+
+void Con_Init( void )
+{
+	con_histCount = 0;
+	con_histBrowse = 0;
+	con_stash[0] = '\0';
+
+	tcgetattr( STDIN_FILENO, &con_savedTerm );
+
+	struct termios working = con_savedTerm;
+	working.c_lflag &= ~( ICANON | ECHO );
+	working.c_cc[VMIN] = 1;
+	working.c_cc[VTIME] = 0;
+	tcsetattr( STDIN_FILENO, TCSANOW, &working );
+	con_rawMode = true;
+
+	atexit( Con_Shutdown ); // ensure we restore terminal state on exit or else terminal gets broken too
+}
+
+void Con_Shutdown( void )
+{
+	// TODO: if con_rawMode, restore original terminal state:
+	//       tcsetattr( STDIN_FILENO, TCSANOW, &con_savedTerm )
+	// TODO: con_rawMode = false
+
+	// if this doesn't fire on every exit path,
+	// the user's shell is stuck in raw mode after we quit.
+	// they'd have to type 'reset' blind to fix it.
+	if ( con_rawMode ) 
+	{
+		tcsetattr( STDIN_FILENO, TCSANOW, &con_savedTerm );
+		con_rawMode = false;
+	}
+}
+
+// ============================================================
+// Con_ReadKey
+// reads one logical keypress, decoding escape sequences
+// ============================================================
+
+static int Con_ReadKey( void )
+{
+	char ch;
+	if ( read( STDIN_FILENO, &ch, 1 ) != 1 )
+	{
+		return 0; // error or EOF
+	}
+
+	if ( ch == 0x1b ) 
+	{
+		read( STDIN_FILENO, &ch, 1 );
+		if ( ch == '[' )
+		{
+			read( STDIN_FILENO, &ch, 1 );
+			switch ( ch )
+			{
+				case 'A': return CON_KEY_UP;
+				case 'B': return CON_KEY_DOWN;
+				case 'C': return CON_KEY_RIGHT;
+				case 'D': return CON_KEY_LEFT;
+				default: return 0;
+			}
+		}
+	}
+
+	if ( ch == 0x7f || ch == 0x08 )
+	{
+		return 0x7f; // backspace
+	}
+
+	return ch;
+}
+
+// ============================================================
+// command history
+// ============================================================
+
+static void Con_HistoryAdd( const char *line )
+{
+	if ( line[0] == '\0' )
+	{
+		return; // do not store empty lines
+	}
+
+	S_strncpyz( con_history[con_histCount % CON_HISTORY_DEPTH ], line, sizeof( con_history[0] ) );
+	con_histCount++;
+	con_histBrowse = con_histCount; // reset browsing to present
+}
+
+// clears the visible input line then redraws prompt + new text
+static void Con_RedrawLine( const char *line, int len )
+{
+	write( STDOUT_FILENO, "\r\033[2K", 5 ); // return + clear line
+	Com_Printf( "^g]^3 " );
+	fflush( stdout ); // this has to go here otherwise the prompt doesn't show up before the line is printed
+	if ( len > 0 )
+	{
+		write( STDOUT_FILENO, line, len );
+	}
+
+}
+
+// ============================================================
+// S_ConsoleInput (replaces fgets version)
+// ============================================================
+
 const char *S_ConsoleInput( void ) 
 {
-	static char line[MAX_CMD_LINE];
+	static char	line[MAX_CMD_LINE];
+	int			cursor;
+	int			key;
+	bool		browsing;
 
 	Com_Printf( "^g]^3 " );
 	fflush( stdout );
 
-	if ( !fgets( line, sizeof ( line ), stdin ) ) 
+	cursor = 0;
+	line[0] = '\0';
+	browsing = false;
+
+	for ( ;; )
 	{
-		if ( ferror( stdin ) ) 
+		key = Con_ReadKey();
+
+		if ( key == '\n' || key == '\r' )
 		{
-			Com_Error( COM_LOG "Error reading from console input" );
+			Com_Printf( "\n" );
+			if ( line[0] != '\0' )
+			{
+				Con_HistoryAdd( line );
+			}
+
+			con_histBrowse = con_histCount; // reset browsing to present
+			return line;
 		}
-		// EOF
-		Com_Quit();
+
+		if ( key == 0x7f || key == 0x08 )
+		{
+			// backspace 
+			if ( cursor > 0 )
+			{
+				cursor--;
+				line[cursor] = '\0';
+				write( STDOUT_FILENO, "\b \b", 3 );
+			}
+			continue;
+		}
+
+		if ( key == CON_KEY_UP )
+		{
+			if (con_histCount == 0) continue;
+
+			if ( !browsing )
+			{
+				S_strncpyz( con_stash, line, sizeof( con_stash ) );
+				con_histBrowse = con_histCount;
+				browsing = true;
+			}
+			if ( con_histBrowse > 0 && ( con_histBrowse > con_histCount - CON_HISTORY_DEPTH ) ) 
+			{
+				con_histBrowse--;
+				S_strncpyz( line, con_history[con_histBrowse % CON_HISTORY_DEPTH], sizeof( line ) );
+				cursor = strlen( line );
+				Con_RedrawLine( line, cursor );
+			}
+
+			continue;
+		}
+
+		if ( key == CON_KEY_DOWN )
+		{
+			if ( !browsing ) continue; 
+
+			con_histBrowse++;
+
+			if ( con_histBrowse >= con_histCount ) 
+			{
+				S_strncpyz( line, con_stash, sizeof( line ) );
+				browsing = false;
+				cursor = strlen( line );
+				Con_RedrawLine( line, cursor );
+			}
+			else
+			{
+				S_strncpyz( line, con_history[con_histBrowse % CON_HISTORY_DEPTH], sizeof( line ) );
+				cursor = strlen( line );
+				Con_RedrawLine( line, cursor );
+			}
+
+			continue;
+		}
+
+		// printable character
+		if ( key >= 32 && key < 256 && cursor < MAX_CMD_LINE - 1 )
+		{
+			char c = (char)key; // cast to char for clarity & portability
+			line[cursor++] = c;
+			line[cursor] = '\0';
+			write( STDOUT_FILENO, &c, 1 );
+		}
 	}
-	return line;
 }
 
 void Com_StartupArgs( int argc, char **argv )
@@ -191,4 +403,3 @@ void Com_StartupArgs( int argc, char **argv )
 		Cmd_Execute( line );
 	}
 }
-
