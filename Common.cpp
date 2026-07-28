@@ -38,7 +38,7 @@ void Com_Init( int argc, char **argv )
 
 void Com_Quit( void )
 {
-	// Com_ConsoleShutdown();
+	Con_Shutdown();
 	FS_Shutdown();
 	S_MemShutdown(); // audits what no one freed
 	exit( 0 );
