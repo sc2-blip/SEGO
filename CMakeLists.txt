@@ -1,21 +1,28 @@
 cmake_minimum_required(VERSION 3.20)
-project(engine LANGUAGES CXX)
+project(SEGO LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
 add_executable(engine
-	S_Main.cpp
-	S_Memory.cpp
-	Com_Console.cpp
-	Cmd_System.cpp
-	Shared.cpp
-	Common.cpp
-	CVar_System.cpp
-	S_System.cpp
-	Math.cpp
-	FS_Main.cpp
+	src/core/Com_Console.cpp
+	src/core/Cmd_System.cpp
+	src/core/CVar_System.cpp
+	src/core/Common.cpp
+	src/core/Shared.cpp
+	src/core/Math.cpp
+
+	src/platform/S_Main.cpp
+	src/platform/S_System.cpp
+	src/platform/S_Memory.cpp
+
+	src/filesystem/FS_Main.cpp
+)
+
+target_include_directories(engine PRIVATE
+	${CMAKE_SOURCE_DIR}/src/core
+	${CMAKE_SOURCE_DIR}/api
 )
 
 if(WIN32)
