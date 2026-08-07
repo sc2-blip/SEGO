@@ -107,13 +107,13 @@ static void Cmd_DecodeTest( void )
         return;
     }
 
-    float duration = (float)pcm.samples / (float)pcm.rate; // calculate duration in seconds
+    float durSec = (float)pcm.samples / (float)pcm.rate; // calculate duration in seconds
 
     Com_Printf( DEC_LOG "Rate: %i\n", pcm.rate );
     Com_Printf( DEC_LOG "Channels: %i\n", pcm.channels );
     Com_Printf( DEC_LOG "Sample Count: %i\n", pcm.samples );
-    Com_Printf( DEC_LOG "Duration (s): %.2f sec\n", duration );
-
+    Com_Printf( DEC_LOG "Duration: %s\n", Com_FormatDuration( durSec ) );
+    
     Snd_FreePcm( &pcm );
 }
 

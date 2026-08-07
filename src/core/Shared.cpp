@@ -50,3 +50,27 @@ int S_stricmp( const char *s1, const char *s2 )
 
 	return 0;
 }
+
+const char *Com_FormatDuration( float sec )
+{
+	static char buf[32];
+	int s = (int)sec;
+	int h = s / 3600;
+	int m = ( s - h * 3600 ) / 60;
+	s = s - h * 3600 - m * 60;
+
+	if ( h > 0 )
+	{
+		snprintf( buf, sizeof( buf ), "%dh %dm %ds", h, m, s );
+	}
+	else if ( m > 0 )
+	{
+		snprintf( buf, sizeof( buf ), "%dm %ds", m, s );
+	}
+	else
+	{
+		snprintf( buf, sizeof( buf ), "%ds", s );
+	}
+
+	return buf;
+}

@@ -105,11 +105,13 @@ void    FS_FreeFile( void *buffer );
 int     FS_FileExists( const char *virtualPath );
 
 // util
-void	S_strncpyz( char *dest, const char *src, size_t size );
-int		S_stricmp( const char *s1, const char *s2 );
-void	S_SystemInit( void );
-int		S_AnsiEnabled( void );
-void	S_InitConsoleAnsi( void );
+const char *Com_FormatDuration( float sec )
+void		S_strncpyz( char *dest, const char *src, size_t size );
+int			S_stricmp( const char *s1, const char *s2 );
+void		S_SystemInit( void );
+int			S_AnsiEnabled( void );
+void		S_InitConsoleAnsi( void );
+
 
 // Math helper functions
 int		Com_HexDigit( char c );
