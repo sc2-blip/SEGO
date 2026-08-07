@@ -1,8 +1,15 @@
 #include "Local.h"
 #include <stdio.h>
 #include <cstdarg>
+
+#ifdef _WIN32
+#include <windows.h>
+#include <conio.h>
+#include <io.h>
+#else
 #include <termios.h>
 #include <unistd.h>
+#endif
 
 #define COM_LOG		"^3[Console]^7 "
 
@@ -41,7 +48,19 @@ static const int con_numColors = sizeof ( con_colors ) / sizeof ( con_colors[0] 
 #define CON_KEY_RIGHT		258
 #define CON_KEY_LEFT		259
 
+#ifdef _WIN32
+static HANDLE	con_hInput;
+static DWORD	con_savedMode;
+#else
 static struct termios	con_savedTerm;
+#endif
+
+#ifdef _WIN32 // *SIGH*
+#define con_write( buf, len )	_write( 1, buf, len )
+#else
+#define con_write( buf, len )	write( STDOUT_FILENO, buf, len )
+#endif
+
 static bool				con_rawMode;
 
 static char		con_history[CON_HISTORY_DEPTH][MAX_CMD_LINE];
@@ -174,6 +193,11 @@ void Con_Init( void )
 	con_histBrowse = 0;
 	con_stash[0] = '\0';
 
+#ifdef _WIN32
+	con_hInput = GetStdHandle( STD_INPUT_HANDLE );
+	GetConsoleMode( con_hInput, &con_savedMode );
+	SetConsoleMode( con_hInput, con_savedMode & ~( ENABLE_LINE_INPUT | ENABLE_ECHO_INPUT ) );
+#else
 	tcgetattr( STDIN_FILENO, &con_savedTerm );
 
 	struct termios working = con_savedTerm;
@@ -181,23 +205,21 @@ void Con_Init( void )
 	working.c_cc[VMIN] = 1;
 	working.c_cc[VTIME] = 0;
 	tcsetattr( STDIN_FILENO, TCSANOW, &working );
-	con_rawMode = true;
+#endif
 
-	atexit( Con_Shutdown ); // ensure we restore terminal state on exit or else terminal gets broken too
+	con_rawMode = true;
+	atexit( Con_Shutdown );
 }
 
 void Con_Shutdown( void )
 {
-	// TODO: if con_rawMode, restore original terminal state:
-	//       tcsetattr( STDIN_FILENO, TCSANOW, &con_savedTerm )
-	// TODO: con_rawMode = false
-
-	// if this doesn't fire on every exit path,
-	// the user's shell is stuck in raw mode after we quit.
-	// they'd have to type 'reset' blind to fix it.
-	if ( con_rawMode ) 
+	if ( con_rawMode )
 	{
+#ifdef _WIN32
+		SetConsoleMode( con_hInput, con_savedMode );
+#else
 		tcsetattr( STDIN_FILENO, TCSANOW, &con_savedTerm );
+#endif
 		con_rawMode = false;
 	}
 }
@@ -209,13 +231,36 @@ void Con_Shutdown( void )
 
 static int Con_ReadKey( void )
 {
+#ifdef _WIN32
+	int ch = _getch();
+
+	if ( ch == 0x00 || ch == 0xE0 )
+	{
+		ch = _getch();
+		switch ( ch )
+		{
+			case 72: return CON_KEY_UP;
+			case 80: return CON_KEY_DOWN;
+			case 75: return CON_KEY_LEFT;
+			case 77: return CON_KEY_RIGHT;
+			default: return 0;
+		}
+	}
+
+	if ( ch == 0x08 )
+	{
+		return 0x7f;
+	}
+
+	return ch;
+#else
 	char ch;
 	if ( read( STDIN_FILENO, &ch, 1 ) != 1 )
 	{
-		return 0; // error or EOF
+		return 0;
 	}
 
-	if ( ch == 0x1b ) 
+	if ( ch == 0x1b )
 	{
 		read( STDIN_FILENO, &ch, 1 );
 		if ( ch == '[' )
@@ -234,10 +279,11 @@ static int Con_ReadKey( void )
 
 	if ( ch == 0x7f || ch == 0x08 )
 	{
-		return 0x7f; // backspace
+		return 0x7f;
 	}
 
 	return ch;
+#endif
 }
 
 // ============================================================
@@ -259,12 +305,16 @@ static void Con_HistoryAdd( const char *line )
 // clears the visible input line then redraws prompt + new text
 static void Con_RedrawLine( const char *line, int len )
 {
-	write( STDOUT_FILENO, "\r\033[2K", 5 ); // return + clear line
+	//write( STDOUT_FILENO, "\r\033[2K", 5 ); 
+	con_write( "\r\033[2K", 5 ); // return + clear line
+
 	Com_Printf( "^g]^3 " );
+	
 	fflush( stdout ); // this has to go here otherwise the prompt doesn't show up before the line is printed
 	if ( len > 0 )
 	{
-		write( STDOUT_FILENO, line, len );
+		// write( STDOUT_FILENO, line, len );
+		con_write( line, len );
 	}
 
 }
@@ -310,7 +360,9 @@ const char *S_ConsoleInput( void )
 			{
 				cursor--;
 				line[cursor] = '\0';
-				write( STDOUT_FILENO, "\b \b", 3 );
+
+				// write( STDOUT_FILENO, "\b \b", 3 );
+				con_write( "\b \b", 3 );
 			}
 			continue;
 		}
@@ -365,7 +417,8 @@ const char *S_ConsoleInput( void )
 			char c = (char)key; // cast to char for clarity & portability
 			line[cursor++] = c;
 			line[cursor] = '\0';
-			write( STDOUT_FILENO, &c, 1 );
+			// write( STDOUT_FILENO, &c, 1 );
+			con_write( &c, 1 );
 		}
 	}
 }
