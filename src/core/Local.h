@@ -105,7 +105,7 @@ void    FS_FreeFile( void *buffer );
 int     FS_FileExists( const char *virtualPath );
 
 // util
-const char *Com_FormatDuration( float sec )
+const char *Com_FormatDuration( float sec );
 void		S_strncpyz( char *dest, const char *src, size_t size );
 int			S_stricmp( const char *s1, const char *s2 );
 void		S_SystemInit( void );
