@@ -57,8 +57,20 @@ void		        Con_Init( void );
 void 				Con_Shutdown( void );	
 
 // Audio
+// Audio decode
+struct sndPcm_t 
+{
+	void	*data;
+	int 	samples;
+	int 	rate;
+	int		channels;
+};
+
 void 	Snd_Init( void );
 void	Snd_Shutdown( void );
+int 	Snd_Decode( const char *virtualPath, sndPcm_t *out );
+void 	Snd_FreePcm( sndPcm_t *pcm );
+void	Snd_DecodeInit( void );
 
 // Common
 [[noreturn]] void	Com_Quit( void );

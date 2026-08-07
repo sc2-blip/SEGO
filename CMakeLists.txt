@@ -21,6 +21,7 @@ add_executable(engine
 	src/filesystem/FS_Main.cpp
 
 	src/audio/Snd_Main.cpp
+	src/audio/Snd_Decode.cpp
 )
 
 target_include_directories(engine PRIVATE

@@ -32,6 +32,7 @@ void Com_Init( int argc, char **argv )
 	FS_Init();
 
 	Snd_Init();
+	Snd_DecodeInit();
 
 	Com_StartupArgs( argc, argv );
 
