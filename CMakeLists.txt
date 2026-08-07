@@ -1,5 +1,6 @@
 cmake_minimum_required(VERSION 3.20)
 project(SEGO LANGUAGES CXX)
+find_package(OpenAL CONFIG REQUIRED)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -18,12 +19,16 @@ add_executable(engine
 	src/platform/S_Memory.cpp
 
 	src/filesystem/FS_Main.cpp
+
+	src/audio/Snd_Main.cpp
 )
 
 target_include_directories(engine PRIVATE
 	${CMAKE_SOURCE_DIR}/src/core
 	${CMAKE_SOURCE_DIR}/api
 )
+
+target_link_libraries(engine PRIVATE OpenAL::OpenAL)
 
 if(WIN32)
 	target_compile_definitions(engine PRIVATE

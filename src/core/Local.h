@@ -56,6 +56,10 @@ void				Com_Frame ( void );
 void		        Con_Init( void );
 void 				Con_Shutdown( void );	
 
+// Audio
+void 	Snd_Init( void );
+void	Snd_Shutdown( void );
+
 // Common
 [[noreturn]] void	Com_Quit( void );
 void				Com_StartupArgs( int argc, char **argv );

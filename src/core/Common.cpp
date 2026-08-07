@@ -31,6 +31,8 @@ void Com_Init( int argc, char **argv )
 	S_SystemInit();
 	FS_Init();
 
+	Snd_Init();
+
 	Com_StartupArgs( argc, argv );
 
 	Com_Printf( "^gSEGO initialized^7\n" );
@@ -39,6 +41,7 @@ void Com_Init( int argc, char **argv )
 void Com_Quit( void )
 {
 	Con_Shutdown();
+	Snd_Shutdown();
 	FS_Shutdown();
 	S_MemShutdown(); // audits what no one freed
 	exit( 0 );
