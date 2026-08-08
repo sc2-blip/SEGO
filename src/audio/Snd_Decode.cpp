@@ -11,6 +11,7 @@
 // Use data streaming and my own pAllocationCallbacks (S_Malloc, S_ReAlloc (NEW), S_Free)
 // to manage memory for data streaming. Will also double as a more
 // robust memory alloc system on the side.
+// Lastly, 24-bit support later down the line
 
 // Snd_DecodeFLAC
 // takes raw file bytes already in memory, decoes to interleaved signed 16-bit PCM
@@ -126,6 +127,6 @@ static void Cmd_DecodeTest( void )
 
 void Snd_DecodeInit( void )
 {
-    Cmd_Create( "decodetest", Cmd_DecodeTest );
+    Cmd_Create( "snd_decodetest", Cmd_DecodeTest );
     Com_Printf( DEC_LOG "Initialized audio decoder\n" );
 }
