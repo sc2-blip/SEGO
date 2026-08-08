@@ -5,6 +5,13 @@
 
 #define DEC_LOG "^3[Audio Decode]^7 "
 
+// TO-DO things to consider for the rest of our sound module:
+// I am going to play audio first but then after I need to:
+// Use dr_wav + dr_mp3 and use control flow to account for all 3 files when decoding
+// Use data streaming and my own pAllocationCallbacks (S_Malloc, S_ReAlloc (NEW), S_Free)
+// to manage memory for data streaming. Will also double as a more
+// robust memory alloc system on the side.
+
 // Snd_DecodeFLAC
 // takes raw file bytes already in memory, decoes to interleaved signed 16-bit PCM
 // Returns void fileData, long fileSize, sndPcm_t *out
