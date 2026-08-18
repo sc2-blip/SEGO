@@ -6,28 +6,19 @@
 #define DR_WAV_IMPLEMENTATION
 #include "../extern/dr_wav.h"
 
+#define DR_MP3_IMPLEMENTATION
+#include "../extern/dr_mp3.h"
+
 #define DEC_LOG "^3[Audio Decode]^7 "
 
 // TO-DO things to consider for the rest of our sound module:
-// I am going to play audio first but then after I need to:
-// Use dr_wav + dr_mp3 and use control flow to account for all 3 files when decoding
 // Use data streaming and my own pAllocationCallbacks (S_Malloc, S_ReAlloc (NEW), S_Free)
 // to manage memory for data streaming. Will also double as a more
 // robust memory alloc system on the side.
 // Lastly, 24-bit support later down the line
 
-// Snd_DecodeFLAC
-// takes raw file bytes already in memory, decoes to interleaved signed 16-bit PCM
-// Returns void fileData, long fileSize, sndPcm_t *out
-// DRFLAC_API drflac_int16* drflac_open_memory_and_read_pcm_frames_s16(
-//  const void* data, 
-//  size_t dataSize, 
-//  unsigned int* channels, 
-//  unsigned int* sampleRate, 
-//  drflac_uint64* totalPCMFrameCount, 
-//  const drflac_allocation_callbacks* pAllocationCallbacks
-// );
-
+//Snd_FileExtension
+// returns pointer to the extension after the dot or "" if none
 static const char *Snd_FileExtension( const char *path )
 {
     const char *dot = NULL;
@@ -74,7 +65,7 @@ static int Snd_DecodeFLAC( void *fileData, long fileSize, sndPcm_t *out )
     return 0;
 }
 
-static int Snd_DecodeWAV ( void *fileData, long fileSize, sndPcm_t *out )
+static int Snd_DecodeWAV( void *fileData, long fileSize, sndPcm_t *out )
 {
     unsigned int channels;
     unsigned int rate;
@@ -103,6 +94,33 @@ static int Snd_DecodeWAV ( void *fileData, long fileSize, sndPcm_t *out )
     return 0;
 }
 
+static int Snd_DecodeMP3( void *fileData, long fileSize, sndPcm_t *out )
+{
+    drmp3_config cfg;
+    drmp3_uint64 totalFrames;
+
+    drmp3_int16 *pcmData = drmp3_open_memory_and_read_pcm_frames_s16(
+        fileData,
+        fileSize,
+        &cfg,
+        &totalFrames,
+        NULL
+    )
+
+    if ( pcmData == NULL )
+    {
+        Com_Printf( DEC_LOG "Failed to decode MP3 data\n" );
+        return -1;
+    }
+
+    out->data = pcmData;
+    out->samples = (int)totalFrames;
+    out->rate = cfg.sampleRate;
+    out->channels = cfg.channels;
+
+    return 0;
+}
+
 int Snd_Decode( const char *virtualPath, sndPcm_t *out )
 {
     // Snd_DecodeFLAC - static function from dr_flac.h
@@ -125,14 +143,16 @@ int Snd_Decode( const char *virtualPath, sndPcm_t *out )
     if ( !S_stricmp( ext, "flac" ) )
         result = Snd_DecodeFLAC( buf, size, out );
     else if ( !S_stricmp( ext, "wav") )
-        result = Snd_DecodeWAV( buf, size, out);
+        result = Snd_DecodeWAV( buf, size, out );
+    else if ( !S_stricmp( ext, "mp3" ) )
+        result = Snd_DecodeMP3( buf, size, out );
     else
         Com_Printf( DEC_LOG "Unknown audio format: .%s\n", ext );
     
 
     FS_FreeFile( buf ); 
 
-    return result; // 0 = success, -1 = failure
+    return result;
 }
 
 void Snd_FreePcm( sndPcm_t *pcm )
@@ -145,7 +165,9 @@ void Snd_FreePcm( sndPcm_t *pcm )
     */
     if ( pcm->data )
     {
-        drflac_free( pcm->data, NULL );
+        //drflac_free( pcm->data, NULL );
+        free( pcm->data );
+
         pcm->data = NULL;
         pcm->samples = 0;
         pcm->rate = 0;
