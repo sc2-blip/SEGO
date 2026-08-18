@@ -3,6 +3,9 @@
 #define DR_FLAC_IMPLEMENTATION
 #include "../extern/dr_flac.h"
 
+#define DR_WAV_IMPLEMENTATION
+#include "../extern/dr_wav.h"
+
 #define DEC_LOG "^3[Audio Decode]^7 "
 
 // TO-DO things to consider for the rest of our sound module:
@@ -24,6 +27,23 @@
 //  drflac_uint64* totalPCMFrameCount, 
 //  const drflac_allocation_callbacks* pAllocationCallbacks
 // );
+
+static const char *Snd_FileExtension( const char *path )
+{
+    const char *dot = NULL;
+    const char *p   = path;
+
+    while ( *p )
+    {
+        if ( *p == '.' )
+            dot = p;
+
+        p++;
+    }
+
+    return dot ? dot + 1 : "";
+}
+
 static int Snd_DecodeFLAC( void *fileData, long fileSize, sndPcm_t *out )
 {
     unsigned int channels;
@@ -54,6 +74,35 @@ static int Snd_DecodeFLAC( void *fileData, long fileSize, sndPcm_t *out )
     return 0;
 }
 
+static int Snd_DecodeWAV ( void *fileData, long fileSize, sndPcm_t *out )
+{
+    unsigned int channels;
+    unsigned int rate;
+    drwav_uint64 totalFrames;
+
+    drwav_int16* pcmData = drwav_open_memory_and_read_pcm_frames_s16(
+        fileData,
+        fileSize,
+        &channels,
+        &rate,
+        &totalFrames,
+        NULL
+    );
+    
+    if ( pcmData == NULL )
+    {
+        Com_Printf( DEC_LOG "Failed to decode WAV data" );
+        return -1;
+    }
+
+    out->data = pcmData;
+    out->samples = (int)totalFrames;
+    out->rate = rate;
+    out->channels = channels;
+
+    return 0;
+}
+
 int Snd_Decode( const char *virtualPath, sndPcm_t *out )
 {
     // Snd_DecodeFLAC - static function from dr_flac.h
@@ -69,7 +118,17 @@ int Snd_Decode( const char *virtualPath, sndPcm_t *out )
         return -1;
     }
 
-    int result = Snd_DecodeFLAC( buf, size, out );
+    //int result = Snd_DecodeFLAC( buf, size, out );
+    const char *ext = Snd_FileExtension( virtualPath );
+    int result = -1;
+
+    if ( !S_stricmp( ext, "flac" ) )
+        result = Snd_DecodeFLAC( buf, size, out );
+    else if ( !S_stricmp( ext, "wav") )
+        result = Snd_DecodeWAV( buf, size, out);
+    else
+        Com_Printf( DEC_LOG "Unknown audio format: .%s\n", ext );
+    
 
     FS_FreeFile( buf ); 
 
