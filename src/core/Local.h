@@ -5,17 +5,13 @@
 #include <cstring>
 #include <cassert>
 
+#include "sg_shared.h"
+
 #define	MAX_PRINT_MSG	4096
 
 #define MAX_CMD_ARGS	16
 #define MAX_CMD_LINE	1024
 #define MAX_CMDS		64
-
-#define CVAR_ARCHIVE ( 1 << 0 ) // 1 - save to config
-#define CVAR_ROM	 ( 1 << 1 ) // 2 - read only
-#define CVAR_INIT	 ( 1 << 2 ) // 4 - only set from command line
-
-typedef unsigned char byte_t; // unsigned 8-bit value
 
 struct conColor_t
 {
@@ -25,16 +21,6 @@ struct conColor_t
 
 struct S_MemHeader {
 	size_t size;
-};
-
-struct cvar_t
-{
-	char	name[64];
-	char	string[256];
-	char	resetString[256];
-	float	value;
-	int		integer;
-	int		flags;
 };
 
 // System
@@ -78,7 +64,6 @@ void				Com_StartupArgs( int argc, char **argv );
 void				Com_Init( int argc, char **argv );
 
 // Commands
-typedef void ( *cmdFunction_t )( void );
 void		Cmd_Init( void );
 void		Cmd_Create( const char *name, cmdFunction_t func);
 void		Cmd_Execute( const char *text );
