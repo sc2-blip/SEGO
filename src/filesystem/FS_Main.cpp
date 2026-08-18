@@ -1,5 +1,11 @@
 #include "Local.h"
 
+#ifdef _WIN32
+#include <windows.h>
+#else
+#include <unistd.h>
+#endif
+
 #define FS_LOG "^3[FS]^7 "
 
 #define MAX_OSPATH			256
@@ -151,11 +157,60 @@ static void Cmd_ReadTest( void )
 
 // ---- init / shutdown ----
 
+// FS_GetExeDir
+// asks the OS where our executable lives, strips the filename, keeps the directory
+static void FS_GetExeDir( char *out, size_t outSize )
+{
+	char path[MAX_OSPATH];
+
+#ifdef _WIN32
+	GetModuleFileNameA( NULL, path, sizeof( path ) );
+#else
+	ssize_t len = readlink( "/proc/self/exe", path, sizeof( path ) - 1 );
+	if ( len <= 0 )
+	{
+		out[0] = '\0';
+		return;
+	}
+	path[len] = '\0';
+#endif
+
+	// walk backward to the last slash and cut there
+	char *last = strrchr( path, '/' );
+	char *lastBS = strrchr( path, '\\' );
+	if ( lastBS > last )
+		last = lastBS;
+
+	if ( last )
+	{
+		*last = '\0';
+		S_strncpyz( out, path, outSize );
+	}
+	else
+	{
+		out[0] = '\0';
+	}
+}
+
 void FS_Init( void )
 {
+	char exeDir[MAX_OSPATH];
+	char basePath[MAX_OSPATH];
+
 	fs_numSearchPaths = 0;
 
-	FS_AddSearchPath( "rsc" );
+	FS_GetExeDir( exeDir, sizeof( exeDir ) );
+
+	if ( exeDir[0] )
+	{
+		snprintf( basePath, sizeof( basePath ), "%s/rsc", exeDir );
+		FS_AddSearchPath( basePath );
+	}
+	else
+	{
+		FS_AddSearchPath( "rsc" );
+	}
+
 	Cmd_Create( "path", Cmd_Path );
 	Cmd_Create( "readtest", Cmd_ReadTest );
 
