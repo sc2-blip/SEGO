@@ -52,11 +52,29 @@ struct sndPcm_t
 	int		channels;
 };
 
-void 	Snd_Init( void );
-void	Snd_Shutdown( void );
-int 	Snd_Decode( const char *virtualPath, sndPcm_t *out );
-void 	Snd_FreePcm( sndPcm_t *pcm );
-void	Snd_DecodeInit( void );
+// Audio cache
+#define MAX_SOUNDS		256
+#define MAX_SOUNDPATH	256
+
+struct sndBuffer_t
+{
+	char			name[MAX_SOUNDPATH];
+	unsigned int	alBuffer;		// OpenAL buffer handle, 0 = empty slot
+	int				rate;
+	int				channels;
+	int				samples;
+	int				hashNext;		// next index in hash chain, -1 = end
+};
+
+void 		Snd_Init( void );
+void		Snd_Shutdown( void );
+int 		Snd_Decode( const char *virtualPath, sndPcm_t *out );
+void 		Snd_FreePcm( sndPcm_t *pcm );
+void		Snd_DecodeInit( void );
+void		Snd_CacheInit( void );
+void		Snd_CacheShutdown( void );
+int			Snd_RegisterSound( const char *name );
+sndBuffer_t	*Snd_GetBuffer( int handle );
 
 // Common
 [[noreturn]] void	Com_Quit( void );

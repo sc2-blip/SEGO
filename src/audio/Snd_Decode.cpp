@@ -56,7 +56,6 @@ static int Snd_DecodeFLAC( void *fileData, long fileSize, sndPcm_t *out )
         return -1;
     }
 
-    // TODO populate out->data, out->samples, out->rate, out->channels
     out->data = pcmData;
     out->samples = (int)totalFrames;
     out->rate = rate;
@@ -105,7 +104,7 @@ static int Snd_DecodeMP3( void *fileData, long fileSize, sndPcm_t *out )
         &cfg,
         &totalFrames,
         NULL
-    )
+    );
 
     if ( pcmData == NULL )
     {
