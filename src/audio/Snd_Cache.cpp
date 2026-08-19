@@ -3,9 +3,27 @@
 
 #define CACHE_LOG "^3[Audio Cache]^7 "
 
+#define SOUND_HASH_SIZE 64
+
 static sndBuffer_t	s_sounds[MAX_SOUNDS];
 static int			s_numSounds;
 static int			s_soundHash[SOUND_HASH_SIZE];
+
+// FIXME: This should really live in Snd_Local.h or something..
+static ALenum Snd_ALFormat( int channels ) 
+{ // returns AL_FORMAT_MONO16 or AL_FORMAT_STEREO16 based on channels 
+
+    switch ( channels )
+    {
+        case 1:
+            return AL_FORMAT_MONO16;
+        case 2:
+            return AL_FORMAT_STEREO16;
+        default:
+            Com_Printf( CACHE_LOG "Snd_ALFormat: Channels readout invalid\n" );
+            return 0;
+    }
+}
 
 // Snd_HashName
 // Takes a sound name, returns an index into s_soundHash
@@ -17,10 +35,12 @@ static int Snd_HashName( const char *name )
 {
 	int hash = 0;
 
-	// TODO: accumulate a hash from each character of name 
-	// tolower() each char so "Sound/Sound_File.wav" and "sound/sound_file.wav" hash the same
+	for ( const char *p = name; *p; p++ )
+	{
+		hash = ( hash << 5 ) + hash + tolower( *p ); 
+	}
 
-	return hash & ( SOUND_HASH_SIZE - 1 );
+	return hash & ( SOUND_HASH_SIZE - 1 ); 
 }
 
 // Snd_FindSound
@@ -30,11 +50,13 @@ static int Snd_FindSound( const char *name )
 {
 	int hash = Snd_HashName( name );
 
-	// TODO: s_soundHash[hash] is the head of the chain
-	// it's an index into s_sounds[], or -1 if the chain is empty
-	// walk the chain, compare names with S_stricmp
-	// folow hashNext to the next link
-	// return the index when you find a match. -1 if the chain ends
+	for ( int i = s_soundHash[hash]; i != -1; i = s_sounds[i].hashNext )
+	{
+		if ( !S_stricmp( name, s_sounds[i].name ) )
+		{
+			return i;
+		}
+	}
 
 	return -1;
 }
@@ -61,27 +83,48 @@ int Snd_RegisterSound( const char *name )
 	int handle = s_numSounds;
 	sndBuffer_t *buf = &s_sounds[handle];
 
-	// TODO: copy name into buf_name S_strncpyz
+	S_strncpyz( buf->name, name, sizeof( buf->name ) );
 
-	// TODO: decode the sound file
-	// declare a sndPcm_t, call Snd_decode with the name
-	// if it fails, return -1
+	sndPcm_t pcm;
+	if ( Snd_Decode( name, &pcm ) != 0 ) // if the result was anything OTHER than success 
+	{
+		Com_Printf( CACHE_LOG "Failed to decode sound %s\n", name );
+		return -1;
+	}
 
-	// TODO: upload the decoded PCM data to OpenAL
-	// refer to Cmd_PlaySnd
-	// 	figure out the AL format from channel count
-	// 	compute dataSize (samples * channels * sizeof( short ))
-	//  alGenBuffers into buf->alBuffer
-	// 	alBufferData with the decoded PCM data
-	//  check alGetError
-	// then store rate, channels, samples, from the PCM into the buf struct
-	// then free the PCM data. openAL made it's own copy
+	ALenum format = Snd_ALFormat( pcm.channels );
+	if ( format == 0 )
+	{
+		Com_Printf( CACHE_LOG "Failed to determine AL format for sound %s\n", name );
+		Snd_FreePcm( &pcm );
+		return -1;
+	}
 
-	// TODO: insert into the hash chain
-	// get the hash index for this name
-	// buf->hashNext = s_soundHash[hash]; (point to the old head)
-	// s_soundHash[hash] = handle; 		  (this is the new head)
-	// think about why this order matters..
+	int dataSize = pcm.samples * pcm.channels * sizeof( short ); // size in bytes
+	// alternatively: drflac_int16 exists
+
+	alGenBuffers( 1, &buf->alBuffer );
+	alBufferData( buf->alBuffer, format, pcm.data, dataSize, pcm.rate );
+
+	ALenum err = alGetError();
+	if ( err != AL_NO_ERROR )
+	{
+		Com_Printf( CACHE_LOG "Failed to buffer audio data for sound %s: %s\n", name, alGetString( err ) );
+
+		alDeleteBuffers( 1, &buf->alBuffer );
+		buf->alBuffer = 0; // Zero the handle to avoid useless reference
+		Snd_FreePcm( &pcm );
+
+		return -1;
+	}
+
+	buf->rate = pcm.rate;
+	buf->channels = pcm.channels;
+	buf->samples = pcm.samples;
+
+	int hash = Snd_HashName( name );
+	buf->hashNext = s_soundHash[hash];
+	s_soundHash[hash] = handle;
 
 	s_numSounds++;
 	Com_Printf( CACHE_LOG "Registered sound %s as handle %d\n", name, handle );
@@ -94,9 +137,12 @@ int Snd_RegisterSound( const char *name )
 // returns NULL if the handle is invalid
 sndBuffer_t *Snd_GetBuffer( int handle )
 {
-	// TODO: bounds check handle against 0 and s_numSounds
-	// return pointer to s_sounds[handle], or NULL
-
+	if ( handle >= 0 && handle <= s_numSounds )
+	{
+		return &s_sounds[handle];
+	}
+	
+	Com_Printf( CACHE_LOG "Snd_GetBuffer WARN: Handle out of bounds\n" );
 	return NULL;
 }
 
@@ -104,11 +150,7 @@ void Snd_CacheInit( void )
 {
 	s_numSounds = 0;
 
-	// tODO: set every entry in s_soundHash to -1, meaning empty chain
-	// memset ( s_soundHash, ???, sizeof( s_soundHash ) );
-	// think about what -1 looks like as bytes in two's complement:
-	// 0xFF, 0xFF, 0xFF, 0xFF for a 32-bit int
-
+	memset( s_soundHash, 0xFF, sizeof( s_soundHash ) ); // memset sequential by default, fills with 0xFF -1
 	memset( s_sounds, 0, sizeof( s_sounds ) );
 
 	Com_Printf( CACHE_LOG "Sound cache initialized\n" );
@@ -116,10 +158,14 @@ void Snd_CacheInit( void )
 
 void Snd_CacheShutdown( void )
 {
-	// TODO: walk s_sounds from 0 to s_numSounds - 1
-	// for each slot that has a valid alBuffer (nonzero):
-	//	alDeleteBuffers( 1, &buf->alBuffer )
-	//	zero the alBuffer field
+	for ( int i = 0; i < s_numSounds; i++ )
+	{
+		if ( s_sounds[i].alBuffer != 0 )
+		{
+			alDeleteBuffers( 1, &s_sounds[i].alBuffer );
+			s_sounds[i].alBuffer = 0;
+		}
+	}
 
 	s_numSounds = 0;
 	Com_Printf( CACHE_LOG "Shutting down..\n" );

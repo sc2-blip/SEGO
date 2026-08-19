@@ -24,7 +24,7 @@ int main( int argc, char **argv )
     Con_Init();
     Com_Init( argc, argv );
 
-    while ( 1 )
+  while ( 1 )
     {
         Com_Frame();
     }

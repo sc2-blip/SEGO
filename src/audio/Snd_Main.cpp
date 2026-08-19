@@ -23,6 +23,7 @@ static ALint Snd_SourceState( ALuint source )
     return state;
 }
 
+// FIXME: This should really live in Snd_Local.h or something..
 static ALenum Snd_ALFormat( int channels ) 
 { // returns AL_FORMAT_MONO16 or AL_FORMAT_STEREO16 based on channels 
 
@@ -46,92 +47,45 @@ static void Cmd_PlaySnd( void )
         return;
     }
 
-    //if a previous sound is still loaded, clean it up:
-    if ( snd_testBuffer )
+    if ( snd_testSource )
     {
         alDeleteSources( 1, &snd_testSource );
-        alDeleteBuffers( 1, &snd_testBuffer );
-        snd_testBuffer = 0;
-        snd_testSource = 0; // zero both handles to avoid useless reference
+        snd_testSource = 0;
     }
-    
 
-    sndPcm_t pcm;
-    int result = Snd_Decode( Cmd_Argv( 1 ), &pcm ); // copies to pcm 
-    if ( result != 0 )
+    int handle = Snd_RegisterSound( Cmd_Argv( 1 ) );
+    if ( handle < 0 )
     {
-        Com_Printf( SND_LOG "Failed to decode sound file: %s\n", Cmd_Argv( 1 ) );
+        Com_Printf( SND_LOG "Failed to load sound: %s\n", Cmd_Argv( 1 ) );
         return;
     }
 
-    // Now that decode has succeeded...
-    // First, Set the total duration of decoded track
+    sndBuffer_t *buf = Snd_GetBuffer( handle );
 
-    snd_testDuration = (float)pcm.samples / (float)pcm.rate;
-    // We're working in seconds here. The average human doesn't give a shit about anything smaller.
-    // Com_FormatDuration( float *seconds* ) to format the duration for printing
-
-    // Second, Set the name of the currently playing sound
+    snd_testDuration = (float)buf->samples / (float)buf->rate;
     S_strncpyz( snd_testName, Cmd_Argv( 1 ), sizeof( snd_testName ) );
 
-
-    
-    ALenum format = Snd_ALFormat( pcm.channels );
-    if ( format == 0 )
-    {
-        Com_Printf( SND_LOG "Failed to determine AL format for sound file: %s\n", snd_testName );
-        Snd_FreePcm( &pcm );
-        return;
-    }
-
-    int dataSize = pcm.samples * pcm.channels * sizeof( short ); // size in bytes
-    // alternatively: drflac_int16 exists
-
-    alGenBuffers( 1, &snd_testBuffer ); 
-    alBufferData( snd_testBuffer, format, pcm.data, dataSize, pcm.rate );
-
-    ALenum err = alGetError();
-    if ( err != AL_NO_ERROR ) // Check for errors 
-    { 
-        Com_Printf( SND_LOG "Failed to buffer audio data: %s\n", alGetString( err ) );
-
-        alDeleteBuffers( 1, &snd_testBuffer );
-        snd_testBuffer = 0; // Zero the handle to avoid useless reference
-        Snd_FreePcm( &pcm );
-
-        return;
-    }
-
     Com_Printf( SND_LOG "%s\n", snd_testName );
-    Com_Printf( // When we're allowing 24-bit this will probably vary
+    Com_Printf(
         SND_LOG "16-bit %g kHz %s\n",
-        pcm.rate / 1000.0f,
-        pcm.channels == 1 ? "mono" : "stereo"
+        buf->rate / 1000.0f,
+        buf->channels == 1 ? "mono" : "stereo"
     );
 
-    // OpenAL copied the data, we don't need ours anymore
-    Snd_FreePcm( &pcm );
+    alGenSources( 1, &snd_testSource );
+    alSourcei( snd_testSource, AL_BUFFER, buf->alBuffer );
+    alSourcePlay( snd_testSource );
 
-    alGenSources( 1, &snd_testSource ); // Generate a source
-    alSourcei( snd_testSource, AL_BUFFER, snd_testBuffer ); // Attach the buffer to the source
-    alSourcePlay( snd_testSource ); // Play the source
-
-    err = alGetError();
-    if ( err != AL_NO_ERROR ) // Check for errors 
+    ALenum err = alGetError();
+    if ( err != AL_NO_ERROR )
     {
         Com_Printf( SND_LOG "Source error: 0x%x\n", err );
-
         alDeleteSources( 1, &snd_testSource );
-        alDeleteBuffers( 1, &snd_testBuffer );
         snd_testSource = 0;
-        snd_testBuffer = 0;
-
         return;
     }
 
-    // Snd_SourceState check to ensure this printf isn't lying to us
-    // if something goes wrong 
-    if ( Snd_SourceState ( snd_testSource ) == AL_PLAYING )
+    if ( Snd_SourceState( snd_testSource ) == AL_PLAYING )
     {
         Com_Printf( SND_LOG "%s\n", Com_FormatDuration( snd_testDuration ) );
     }
@@ -139,7 +93,6 @@ static void Cmd_PlaySnd( void )
     {
         Com_Printf( SND_LOG "Failed to play sound: %s\n", snd_testName );
     }
-    
 }
 
 static void Cmd_PositionSnd( void )
@@ -244,6 +197,8 @@ void Snd_Init( void )
     Com_Printf( SND_LOG "OpenAL version: %s\n", alGetString( AL_VERSION ) );
     Com_Printf( SND_LOG "Initialized OpenAL audio system\n" );
 
+    Snd_CacheInit();
+
     Cmd_Create( "snd_play", Cmd_PlaySnd );
     Cmd_Create( "snd_stop", Cmd_StopSnd );
     Cmd_Create( "snd_pause", Cmd_PauseSnd );
@@ -256,17 +211,20 @@ void Snd_Init( void )
 
 void Snd_Shutdown( void ) 
 {
+    
     if ( snd_testSource ) // Clean up
     {
         alDeleteSources( 1, &snd_testSource );
         snd_testSource = 0;
     }
 
-    if ( snd_testBuffer ) // Clean up
+    /* if ( snd_testBuffer ) // Clean up
     {
         alDeleteBuffers( 1, &snd_testBuffer );
         snd_testBuffer = 0;
-    }
+    } */
+
+    Snd_CacheShutdown(); 
 
     alcMakeContextCurrent( NULL ); // Clean up context
 
