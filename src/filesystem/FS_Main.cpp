@@ -2,6 +2,9 @@
 
 #ifdef _WIN32
 #include <windows.h>
+#elif defined(__APPLE__)
+#include <unistd.h>
+#include <mach-o/dyld.h>
 #else
 #include <unistd.h>
 #endif
@@ -165,6 +168,13 @@ static void FS_GetExeDir( char *out, size_t outSize )
 
 #ifdef _WIN32
 	GetModuleFileNameA( NULL, path, sizeof( path ) );
+#elif defined(__APPLE__)
+	uint32_t bufSize = sizeof( path );
+	if ( _NSGetExecutablePath( path, &bufSize ) != 0 )
+	{
+		out[0] = '\0';
+		return;
+	}
 #else
 	ssize_t len = readlink( "/proc/self/exe", path, sizeof( path ) - 1 );
 	if ( len <= 0 )

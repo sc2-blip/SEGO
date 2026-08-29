@@ -2,6 +2,8 @@
 
 #ifdef _WIN32
 #include <windows.h>
+#elif defined(__APPLE__)
+#include <unistd.h>
 #else
 #include <unistd.h>
 #endif
@@ -175,6 +177,80 @@ void S_SystemInit( void )
 
 #else
 
+#ifdef __APPLE__
+#include <sys/types.h>
+#include <sys/sysctl.h>
+#include <mach/mach.h>
+
+static void S_PrintSystemInfo( void )
+{
+	char		cpuName[256];
+	size_t 		cpuNameLen;
+	int			logicalCores;
+	size_t		coreLen;
+	uint64_t	memSize;	
+	size_t		memLen;
+	long		pageSize;
+	long		memTotal;
+	long		memAvail;
+	
+	mach_msg_type_number_t	count;
+	vm_statistics64_data_t	vmstat;
+
+	// sysctl gives us the CPU brand string directly
+	cpuNameLen = sizeof( cpuName );
+	if ( sysctlbyname( "machdep.cpu.brand_string", cpuName, &cpuNameLen, NULL, 0 ) != 0 )
+	{
+		cpuName[0] = '\0';
+	}
+
+	Com_Printf( SYS_LOG "CPU: %s\n", 
+		cpuName[0] ? cpuName : "unknown" );
+
+	// Apple Silicon has no fixed clock
+	Com_Printf( SYS_LOG "CPU clock: dynamic (ARM)\n" );
+
+	coreLen = sizeof( logicalCores );
+	sysctlbyname( "hw.logicalcpu", &logicalCores, &coreLen, NULL, 0 );
+	Com_Printf( SYS_LOG "logical cores: %d\n", logicalCores );
+
+	pageSize = sysconf( _SC_PAGESIZE );
+	Com_Printf( SYS_LOG "page size: %ld bytes\n", pageSize );
+
+	memLen = sizeof( memSize );
+	sysctlbyname( "hw.memsize", &memSize, &memLen, NULL, 0 );
+	memTotal = (long)( memSize/ ( 1024 * 1024 ) );
+
+	// Mach VM stats for available memory
+	count = HOST_VM_INFO64_COUNT;
+	if ( host_statistics64( 
+		mach_host_self(), 
+		HOST_VM_INFO64, 
+		(host_info64_t)&vmstat,
+		&count
+	) == KERN_SUCCESS )
+	{
+		memAvail = (long)( 
+			( 
+				(uint64_t)( vmstat.free_count + vmstat.inactive_count ) * pageSize ) / ( 1024 * 1024 ) 
+			);
+	} 
+	else 
+	{
+		memAvail = 0;
+	}
+
+	Com_Printf( SYS_LOG "RAM: %ld MB total, %ld MB available\n", memTotal, memAvail );
+
+	if ( memTotal > 0 )
+	{
+		Com_Printf( SYS_LOG "memory load: %ld%%\n",
+			( ( memTotal - memAvail ) * 100 ) / memTotal );
+	}
+}
+
+#else // linux
+
 // grab a value from a /proc key-value file
 // looks for a line starting with key, returns the text after ':'
 static void S_ReadProcValue( const char *path, const char *key, char *out, size_t outSize )
@@ -252,6 +328,8 @@ static void S_PrintSystemInfo( void )
 			( ( memTotal - memAvail ) * 100 ) / memTotal );
 	}
 }
+
+#endif // __APPLE__ & Linux
 
 void S_InitConsoleAnsi( void )
 {

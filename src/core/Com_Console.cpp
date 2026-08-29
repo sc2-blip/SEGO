@@ -70,6 +70,17 @@ static char		con_stash[MAX_CMD_LINE];	// preserves in-progress input before brow
 
 // ============================================================
 
+#ifdef __APPLE__
+static int Com_Rgb256( byte_t r, byte_t g, byte_t b )
+{
+	int ri = ( r * 5 + 127 ) / 255;
+	int gi = ( g * 5 + 127 ) / 255;
+	int bi = ( b * 5 + 127 ) / 255;
+	
+	return 16 + 36 * ri + 6 * gi + bi;
+}
+#endif
+
 static conColor_t *Com_ColorForCode( char code )
 {
 	for ( int i = 0; i < con_numColors; i++ )
@@ -115,7 +126,13 @@ void Com_Printf( const char* fmt, ... )
 
 				if ( Com_ParseHexColor( p + 2, &r, &g, &b ) )
 				{
-					out += sprintf( out, "\033[38;2;%d;%d;%dm", r, g, b );
+					//out += sprintf( out, "\033[38;2;%d;%d;%dm", r, g, b );
+					#ifdef __APPLE__
+						out += sprintf( out, "\033[38;5;%dm", Com_Rgb256( r, g, b ) );
+					#else
+						out += sprintf( out, "\033[38;2;%d;%d;%dm", r, g, b );
+					#endif
+					
 					p += 8;
 
 					continue;
@@ -143,7 +160,12 @@ void Com_Printf( const char* fmt, ... )
 
 				if ( c)
 				{
-					out += sprintf( out, "\033[38;2;%d;%d;%dm", c->r, c->g, c->b );
+					//out += sprintf( out, "\033[38;2;%d;%d;%dm", c->r, c->g, c->b );
+					#ifdef __APPLE__
+						out += sprintf( out, "\033[38;5;%dm", Com_Rgb256( c->r, c->g, c->b ) );
+					#else
+						out += sprintf( out, "\033[38;2;%d;%d;%dm", c->r, c->g, c->b );
+					#endif
 					p += 2;
 
 					continue;
