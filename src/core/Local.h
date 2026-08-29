@@ -6,7 +6,7 @@
 #include <cassert>
 #include <cctype>
 
-#include "sg_shared.h"
+#include "SG_shared.h"
 
 #define	MAX_PRINT_MSG	4096
 
