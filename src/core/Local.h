@@ -34,6 +34,7 @@ void*	S_Malloc( size_t size );
 void	S_Free( void *ptr );
 void	S_MemInfo( void );
 void	S_MemShutdown ( void );
+void* 	S_ReAlloc( void *ptr, size_t size );
 
 // Console
 [[noreturn]] void	Com_Error( const char *fmt, ... );
