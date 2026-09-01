@@ -11,11 +11,29 @@
 
 #define DEC_LOG "^3[Audio Decode]^7 "
 
-// TO-DO things to consider for the rest of our sound module:
-// Use data streaming and my own pAllocationCallbacks (S_Malloc, S_ReAlloc (NEW), S_Free)
-// to manage memory for data streaming. Will also double as a more
-// robust memory alloc system on the side.
-// Lastly, 24-bit support later down the line
+// TO-DO for the future:
+// 24-bit support
+// Continuous data streaming easier on memory
+// Memory zoning for more specific soundscapes in certain situations
+
+static void* Snd_DRMalloc( size_t sz, void *pUserData )
+{
+    (void)pUserData; // suppress unused warning
+    return S_Malloc( sz );
+}
+
+static void* Snd_DRRealloc( void *p, size_t sz, void *pUserData )
+{
+    (void)pUserData;
+    return S_ReAlloc( p, sz );
+}
+
+static void Snd_DRFree( void *p, void *pUserData )
+{
+    (void)pUserData;
+    S_Free( p );
+}
+
 
 //Snd_FileExtension
 // returns pointer to the extension after the dot or "" if none
@@ -41,13 +59,15 @@ static int Snd_DecodeFLAC( void *fileData, long fileSize, sndPcm_t *out )
     unsigned int rate;
     drflac_uint64 totalFrames;
 
+    drflac_allocation_callbacks mem = { NULL, Snd_DRMalloc, Snd_DRRealloc, Snd_DRFree };
+
     drflac_int16* pcmData = drflac_open_memory_and_read_pcm_frames_s16(
         fileData,
         fileSize,
         &channels,
         &rate,
         &totalFrames,
-        NULL
+        &mem
     );
 
     if ( pcmData == NULL )
@@ -70,13 +90,15 @@ static int Snd_DecodeWAV( void *fileData, long fileSize, sndPcm_t *out )
     unsigned int rate;
     drwav_uint64 totalFrames;
 
+    drwav_allocation_callbacks mem = { NULL, Snd_DRMalloc, Snd_DRRealloc, Snd_DRFree };
+
     drwav_int16* pcmData = drwav_open_memory_and_read_pcm_frames_s16(
         fileData,
         fileSize,
         &channels,
         &rate,
         &totalFrames,
-        NULL
+        &mem
     );
     
     if ( pcmData == NULL )
@@ -98,12 +120,14 @@ static int Snd_DecodeMP3( void *fileData, long fileSize, sndPcm_t *out )
     drmp3_config cfg;
     drmp3_uint64 totalFrames;
 
+    drmp3_allocation_callbacks mem = { NULL, Snd_DRMalloc, Snd_DRRealloc, Snd_DRFree };
+
     drmp3_int16 *pcmData = drmp3_open_memory_and_read_pcm_frames_s16(
         fileData,
         fileSize,
         &cfg,
         &totalFrames,
-        NULL
+        &mem
     );
 
     if ( pcmData == NULL )
@@ -165,7 +189,7 @@ void Snd_FreePcm( sndPcm_t *pcm )
     if ( pcm->data )
     {
         //drflac_free( pcm->data, NULL );
-        free( pcm->data );
+        S_Free( pcm->data );
 
         pcm->data = NULL;
         pcm->samples = 0;
@@ -201,6 +225,8 @@ static void Cmd_DecodeTest( void )
     Com_Printf( DEC_LOG "Channels: %i\n", pcm.channels );
     Com_Printf( DEC_LOG "Sample Count: %i\n", pcm.samples );
     Com_Printf( DEC_LOG "Duration: %s\n", Com_FormatDuration( durSec ) );
+
+    Cmd_Execute( "meminfo" );
     
     Snd_FreePcm( &pcm );
 }
