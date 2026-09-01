@@ -48,9 +48,24 @@ void* S_ReAlloc( void *ptr, size_t newSize )
 	}
 
 	// go back to header
-	S_MemHeader *old = ( ( S_MemHeader * ) ptr ) - 1;
+	S_MemHeader *oldHeader = ( ( S_MemHeader* ) ptr ) - 1;
+	
+	// Store old size because it wont exist here in a short few moments
+	size_t oldSize = oldHeader->size;
 
-	// S_Malloc( )
+	S_MemHeader *newHeader = ( S_MemHeader* )realloc( oldHeader, sizeof( S_MemHeader ) + newSize );
+	
+	if ( !newHeader )
+	{ // if reallocation fails...
+    	Com_Error( MEM_LOG "S_ReAlloc: failed on reallocation of %zu bytes", newSize );
+	}
+
+	newHeader->size = newSize;
+	s_memBytesAllocated -= oldSize;
+	s_memBytesAllocated += newHeader->size;
+
+	// return user pointer (header + 1):
+	return ( void* )( newHeader + 1 );
 }
 
 void S_Free( void* ptr ) 
