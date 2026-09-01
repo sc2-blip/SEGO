@@ -35,6 +35,24 @@ void* S_Malloc( size_t size )
 
 }
 
+void* S_ReAlloc( void *ptr, size_t newSize )
+{
+	if ( !ptr )
+		return S_Malloc( newSize );
+
+	// if newSize is 0 then free
+	if ( !newSize )
+	{
+		S_Free( ptr );
+		return NULL;
+	}
+
+	// go back to header
+	S_MemHeader *old = ( ( S_MemHeader * ) ptr ) - 1;
+
+	// S_Malloc( )
+}
+
 void S_Free( void* ptr ) 
 { // free memory
 	if ( !ptr )
