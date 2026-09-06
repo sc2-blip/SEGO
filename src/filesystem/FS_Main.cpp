@@ -5,8 +5,10 @@
 #elif defined(__APPLE__)
 #include <unistd.h>
 #include <mach-o/dyld.h>
+#include <dirent.h>
 #else
 #include <unistd.h>
+#include <dirent.h>
 #endif
 
 #define FS_LOG "^3[FS]^7 "
@@ -132,6 +134,68 @@ static void Cmd_Path( void )
 	Com_Printf( FS_LOG "Total search paths: %d\n", fs_numSearchPaths );
 }
 
+static void Cmd_Dir( void )
+{
+	char	osPath[MAX_OSPATH];
+
+#ifdef _WIN32
+	char	searchPattern[MAX_OSPATH];
+#endif
+
+	if ( Cmd_Argc() < 2 )
+	{
+		Com_Printf( FS_LOG "Usage: dir <directory>\n");
+		return;
+	}
+
+	for ( int i = fs_numSearchPaths - 1; i >= 0; i-- )
+	{
+		FS_BuildOSPath( fs_searchPaths[i].path, Cmd_Argv( 1 ), osPath, sizeof( osPath ) );
+
+		// Prints for every search path
+		Com_Printf( FS_LOG "Directory of %s:\n", osPath );
+		Com_Printf( "===================\n" );
+
+#ifdef _WIN32
+
+		snprintf( searchPattern, sizeof( searchPattern ), "%s/*", osPath );
+
+		WIN32_FIND_DATAA fd;
+		HANDLE h = FindFirstFileA( searchPattern, &fd );
+
+		if ( h == INVALID_HANDLE_VALUE ) continue;
+
+		do 
+		{
+			if ( strcmp( fd.cFileName , "." ) == 0 || strcmp( fd.cFileName , ".." ) == 0 )
+				continue;
+
+			Com_Printf("    %s\n", fd.cFileName );
+		} while ( FindNextFileA( h, &fd ) );
+
+		FindClose( h );
+
+#else  // POSIX
+
+		DIR *d = opendir( osPath );
+
+		if ( !d ) continue;
+
+		struct dirent *entry;
+
+		while ( ( entry = readdir( d ) ) != NULL )
+		{
+			if ( strcmp( entry->d_name, "." ) == 0 || strcmp( entry->d_name, ".." ) == 0 )
+				continue;
+
+			Com_Printf("    %s\n", entry->d_name );
+		}
+
+		closedir( d );
+#endif
+	}
+}
+
 // Cmd_ReadTest
 // usage: readtest <filepath>
 // tries FS_ReadFile, prints the size if it worked, then frees
@@ -202,6 +266,7 @@ static void FS_GetExeDir( char *out, size_t outSize )
 	}
 }
 
+
 void FS_Init( void )
 {
 	char exeDir[MAX_OSPATH];
@@ -215,6 +280,12 @@ void FS_Init( void )
 	{
 		snprintf( basePath, sizeof( basePath ), "%s/rsc", exeDir );
 		FS_AddSearchPath( basePath );
+
+		/* snprintf( basePath, sizeof( basePath ), "%s/rsc2", exeDir );
+		FS_AddSearchPath( basePath ); */
+		// Eventually +mod or +game args or whatever will
+		// dictate adding one other search path for assets
+		// gonna be up to whatever's being made on utility
 	}
 	else
 	{
@@ -223,6 +294,7 @@ void FS_Init( void )
 
 	Cmd_Create( "path", Cmd_Path );
 	Cmd_Create( "readtest", Cmd_ReadTest );
+	Cmd_Create( "dir", Cmd_Dir );
 
 	Com_Printf( FS_LOG "VFS initialized with %d search paths\n", fs_numSearchPaths );
 }
