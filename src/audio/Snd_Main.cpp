@@ -1,6 +1,4 @@
-#include "Local.h"
-#include <AL/al.h>
-#include <AL/alc.h>
+#include "Snd_Local.h"
 
 #define SND_LOG "^3[Audio]^7 "
 
@@ -21,22 +19,6 @@ static ALint Snd_SourceState( ALuint source )
     ALint state;
     alGetSourcei( source, AL_SOURCE_STATE, &state );
     return state;
-}
-
-// FIXME: This should really live in Snd_Local.h or something..
-static ALenum Snd_ALFormat( int channels ) 
-{ // returns AL_FORMAT_MONO16 or AL_FORMAT_STEREO16 based on channels 
-
-    switch ( channels )
-    {
-        case 1:
-            return AL_FORMAT_MONO16;
-        case 2:
-            return AL_FORMAT_STEREO16;
-        default:
-            Com_Printf( SND_LOG "Snd_ALFormat: Channels readout invalid\n" );
-            return 0;
-    }
 }
 
 static void Cmd_PlaySnd( void )

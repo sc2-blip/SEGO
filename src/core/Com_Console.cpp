@@ -13,13 +13,11 @@
 
 #define COM_LOG		"^3[Console]^7 "
 
-// As good practice, I am declaring every major system get started
-// with a #define WHATEVER_LOG. Start of every single file.
-// We'll then use that WHATEVER_LOG (if you want) in print calls.
-// It's important to know what it will look like when the file
-// is trying to talk to you for debug purposes.
-// We want know *where* our error is coming from to be consistent in logs
-// because I feel our console is gonna fill up with stuff pretty quickly.
+struct conColor_t
+{
+	char	code;
+	byte_t	r, g, b;
+};
 
 static conColor_t con_colors[] = {
 	{ '0',   0,   0,   0 },   // black

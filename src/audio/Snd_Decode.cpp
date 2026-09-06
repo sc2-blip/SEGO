@@ -1,4 +1,4 @@
-#include "Local.h"
+#include "Snd_Local.h"
 
 #define DR_FLAC_IMPLEMENTATION
 #include "../extern/dr_flac.h"

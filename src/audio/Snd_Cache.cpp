@@ -1,5 +1,4 @@
-#include "Local.h"
-#include <AL/al.h>
+#include "Snd_Local.h"
 
 #define CACHE_LOG "^3[Audio Cache]^7 "
 
@@ -8,22 +7,6 @@
 static sndBuffer_t	s_sounds[MAX_SOUNDS];
 static int			s_numSounds;
 static int			s_soundHash[SOUND_HASH_SIZE];
-
-// FIXME: This should really live in Snd_Local.h or something..
-static ALenum Snd_ALFormat( int channels ) 
-{ // returns AL_FORMAT_MONO16 or AL_FORMAT_STEREO16 based on channels 
-
-    switch ( channels )
-    {
-        case 1:
-            return AL_FORMAT_MONO16;
-        case 2:
-            return AL_FORMAT_STEREO16;
-        default:
-            Com_Printf( CACHE_LOG "Snd_ALFormat: Channels readout invalid\n" );
-            return 0;
-    }
-}
 
 // Snd_HashName
 // Takes a sound name, returns an index into s_soundHash
@@ -121,6 +104,8 @@ int Snd_RegisterSound( const char *name )
 	buf->rate = pcm.rate;
 	buf->channels = pcm.channels;
 	buf->samples = pcm.samples;
+
+	Snd_FreePcm( &pcm ); // fix leak
 
 	int hash = Snd_HashName( name );
 	buf->hashNext = s_soundHash[hash];

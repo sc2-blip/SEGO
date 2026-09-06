@@ -22,7 +22,12 @@ add_executable(engine
 
 	src/audio/Snd_Main.cpp
 	src/audio/Snd_Decode.cpp
- "src/core/SG_Shared.h" "src/extern/dr_wav.h" "src/extern/dr_mp3.h" "src/audio/Snd_Cache.cpp")
+ "src/core/SG_Shared.h" 
+ "src/extern/dr_wav.h" 
+ "src/extern/dr_mp3.h" 
+ "src/audio/Snd_Cache.cpp" 
+ "src/audio/Snd_Local.h"
+)
 
 target_include_directories(engine PRIVATE
 	${CMAKE_SOURCE_DIR}/src/core

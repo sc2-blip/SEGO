@@ -14,13 +14,8 @@
 #define MAX_CMD_LINE	1024
 #define MAX_CMDS		64
 
-struct conColor_t
+struct S_MemHeader 
 {
-	char	code;
-	byte_t	r, g, b;
-};
-
-struct S_MemHeader {
 	size_t size;
 };
 
@@ -43,40 +38,6 @@ void				Com_Printf( const char *fmt, ... );
 void				Com_Frame ( void );
 void		        Con_Init( void );
 void 				Con_Shutdown( void );	
-
-// Audio
-// Audio decode
-struct sndPcm_t 
-{
-	void	*data;
-	int 	samples;
-	int 	rate;
-	int		channels;
-};
-
-// Audio cache
-#define MAX_SOUNDS		256
-#define MAX_SOUNDPATH	256
-
-struct sndBuffer_t
-{
-	char			name[MAX_SOUNDPATH];
-	unsigned int	alBuffer;		// OpenAL buffer handle, 0 = empty slot
-	int				rate;
-	int				channels;
-	int				samples;
-	int				hashNext;		// next index in hash chain, -1 = end
-};
-
-void 		Snd_Init( void );
-void		Snd_Shutdown( void );
-int 		Snd_Decode( const char *virtualPath, sndPcm_t *out );
-void 		Snd_FreePcm( sndPcm_t *pcm );
-void		Snd_DecodeInit( void );
-void		Snd_CacheInit( void );
-void		Snd_CacheShutdown( void );
-int			Snd_RegisterSound( const char *name );
-sndBuffer_t	*Snd_GetBuffer( int handle );
 
 // Common
 [[noreturn]] void	Com_Quit( void );
@@ -117,7 +78,11 @@ void		S_SystemInit( void );
 int			S_AnsiEnabled( void );
 void		S_InitConsoleAnsi( void );
 
-
 // Math helper functions
 int		Com_HexDigit( char c );
 bool	Com_ParseHexColor( const char *hex, byte_t *r, byte_t *g, byte_t *b );
+
+// Audio
+void	Snd_Init( void );
+void	Snd_Shutdown( void );
+void	Snd_DecodeInit( void );
