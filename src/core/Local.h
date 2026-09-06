@@ -14,11 +14,6 @@
 #define MAX_CMD_LINE	1024
 #define MAX_CMDS		64
 
-struct S_MemHeader 
-{
-	size_t size;
-};
-
 // System
 void	S_InitSignals( void );
 int		S_SignalCaught( void );

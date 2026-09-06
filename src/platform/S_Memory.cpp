@@ -5,6 +5,11 @@
 static size_t	s_memBytesAllocated;
 static int		s_memAllocCount;
 
+struct S_MemHeader 
+{
+	size_t size;
+};
+
 void S_MemInit( void )
 { // init memory
 	s_memBytesAllocated = 0;
