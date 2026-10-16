@@ -40,6 +40,7 @@ static void FS_BuildOSPath( const char *base, const char *virtualPath, char *out
 // FS_AddSearchPath
 // pushes a directory onto the search stack
 // last added = highest priority = searched first
+// by default "rsc" is FS_AddSearchPath'd for engine & mod code to find assets in
 void FS_AddSearchPath( const char *path )
 {
 	assert( path != NULL );
@@ -211,6 +212,7 @@ static void Cmd_ReadTest( void )
 	const char *filepath = Cmd_Argv( 1 );
 	void *buf = NULL;
 	long size = FS_ReadFile( filepath, &buf );
+
 	if ( size > 0 )
 	{
 		Com_Printf( FS_LOG "Read file: %s, size: %ld bytes\n", filepath, size );
